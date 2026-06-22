@@ -1,10 +1,17 @@
 """Tests for AppShip tools."""
 
 import json
+import os
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
-from appship.tools.appship_tools import analyze_android_project, build_android_aab
+from appship.tools.appship_tools import (
+    analyze_android_project,
+    build_android_aab,
+    get_google_play_status,
+    upload_to_google_play,
+)
 
 
 def test_analyze_nonexistent_path():
@@ -96,3 +103,82 @@ def test_build_invalid_type():
         result = json.loads(build_android_aab(tmp, build_type="staging"))
         assert result["status"] == "failed"
         assert "invalid" in result["error_summary"].lower()
+
+
+# ---------------------------------------------------------------------------
+# upload_to_google_play integration tests
+# ---------------------------------------------------------------------------
+
+
+def test_upload_no_service_account():
+    """Upload fails when GOOGLE_PLAY_SERVICE_ACCOUNT env var is not set."""
+    with tempfile.TemporaryDirectory() as tmp:
+        aab_path = Path(tmp) / "test.aab"
+        aab_path.write_text("fake aab content")
+        with patch.dict(os.environ, {}, clear=True):
+            result = json.loads(upload_to_google_play(str(aab_path), "com.example.app"))
+    assert result["status"] == "failed"
+    assert "GOOGLE_PLAY_SERVICE_ACCOUNT" in result["error_summary"]
+
+
+def test_upload_invalid_track():
+    """Upload fails for an invalid track name before any other validation."""
+    with patch.dict(os.environ, {"GOOGLE_PLAY_SERVICE_ACCOUNT": "/nonexistent/sa.json"}):
+        result = json.loads(upload_to_google_play(
+            "/nonexistent/path.aab", "com.example.app", track="invalid_track"
+        ))
+    assert result["status"] == "failed"
+    assert "Invalid track" in result["error_summary"]
+
+
+def test_upload_aab_not_found():
+    """Upload fails when the AAB file does not exist (env and track are valid)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        sa_path = Path(tmp) / "sa.json"
+        sa_path.write_text("{}")  # dummy service account file
+        with patch.dict(os.environ, {"GOOGLE_PLAY_SERVICE_ACCOUNT": str(sa_path)}):
+            result = json.loads(upload_to_google_play(
+                "/nonexistent/path.aab", "com.example.app", track="internal"
+            ))
+    assert result["status"] == "failed"
+    assert "not found" in result["error_summary"].lower()
+
+
+def test_upload_hitl_approval_flow():
+    """When task_id is provided, upload returns pending_approval with a token."""
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        aab_path = root / "test.aab"
+        aab_path.write_text("fake aab content")
+        sa_path = root / "sa.json"
+        sa_path.write_text("{}")
+        with patch.dict(os.environ, {"GOOGLE_PLAY_SERVICE_ACCOUNT": str(sa_path)}):
+            result = json.loads(upload_to_google_play(
+                str(aab_path), "com.example.app", track="internal", task_id="task-123"
+            ))
+    assert result["status"] == "pending_approval"
+    assert "approval_token" in result
+    assert result["approval_token"].startswith("appship-upload-")
+    assert result["details"]["package_name"] == "com.example.app"
+    assert result["details"]["track"] == "internal"
+
+
+# ---------------------------------------------------------------------------
+# get_google_play_status integration tests
+# ---------------------------------------------------------------------------
+
+
+def test_status_no_service_account():
+    """Status query fails when GOOGLE_PLAY_SERVICE_ACCOUNT env var is not set."""
+    with patch.dict(os.environ, {}, clear=True):
+        result = json.loads(get_google_play_status("com.example.app"))
+    assert result["status"] == "failed"
+    assert "GOOGLE_PLAY_SERVICE_ACCOUNT" in result["error_summary"]
+
+
+def test_status_service_account_not_found():
+    """Status query fails when the service account file path does not exist."""
+    with patch.dict(os.environ, {"GOOGLE_PLAY_SERVICE_ACCOUNT": "/nonexistent/sa.json"}):
+        result = json.loads(get_google_play_status("com.example.app"))
+    assert result["status"] == "failed"
+    assert "not found" in result["error_summary"].lower()
