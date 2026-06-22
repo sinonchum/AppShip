@@ -20,5 +20,5 @@ dev = [
     "pytest-mock>=3.0",
 ]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[project.scripts]
+appship = "appship.cli:main"
