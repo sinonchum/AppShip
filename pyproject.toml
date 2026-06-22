@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "appship"
+version = "0.1.0"
+description = "Agent-native app store distribution — Google Play, App Store, Chinese Android stores"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Simon Qin"}]
+dependencies = [
+    "google-auth>=2.0",
+    "google-api-python-client>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-mock>=3.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Feiyue local-only
+local-notes/
+.hermes/hermes-session-drafts/
+.hermes/frontend-dogfood/
+.hermes/execution-output/
+.hermes/review-intent-drafts/
+
+# Secrets
+*.json
+!pyproject.toml
