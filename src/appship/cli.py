@@ -18,6 +18,7 @@ from appship.tools.appship_tools import (
     get_google_play_status,
     upload_to_google_play,
 )
+from appship.tools.deploy_all import deploy_all
 
 
 def main() -> None:
@@ -48,6 +49,16 @@ def main() -> None:
     p_status = sub.add_parser("status", help="Check Google Play track status")
     p_status.add_argument("package_name", help="Android package name")
 
+    # deploy
+    p_deploy = sub.add_parser("deploy", help="Full deploy pipeline: analyze → build → upload → status")
+    p_deploy.add_argument("project_path", help="Path to project root")
+    p_deploy.add_argument("--platform", default="android", choices=["android", "ios"],
+                          help="Target platform (default: android)")
+    p_deploy.add_argument("--track", default="internal",
+                          choices=["internal", "alpha", "beta", "production"],
+                          help="Release track (default: internal)")
+    p_deploy.add_argument("--release-notes", default="", help="Release notes")
+
     args = parser.parse_args()
 
     if args.command == "analyze":
@@ -59,6 +70,8 @@ def main() -> None:
         print(upload_to_google_play(args.aab_path, args.package_name, args.track, args.release_notes))
     elif args.command == "status":
         print(get_google_play_status(args.package_name))
+    elif args.command == "deploy":
+        print(deploy_all(args.project_path, args.platform, args.track, args.release_notes))
 
 
 if __name__ == "__main__":

@@ -106,19 +106,82 @@ Agent calls upload → tool returns { status: "pending_approval", approval_token
 - **No credential logging**: Output redacts key paths and passwords
 - **Approval audit**: Every HITL decision is recorded in Feiyue evidence
 
-## Phase 1 Deliverables
+## Phase 1 Deliverables ✅ (COMPLETE — 2026-06-22)
 
-- [ ] AppShip Hermes skill (`hermes-assets/skills/devops/appship/SKILL.md`)
-- [ ] Python tool implementations in `src/appship/tools/`
-- [ ] Google Play Service Account setup guide
-- [ ] `appship_analyze_android_project` — working, tested
-- [ ] `appship_build_android_aab` — working, tested
-- [ ] `appship_upload_to_google_play` — working, tested (with HITL)
-- [ ] `appship_get_google_play_status` — working, tested
-- [ ] Feiyue evidence for each development phase
+- [x] AppShip Hermes skill (`hermes-assets/skills/devops/appship/SKILL.md`)
+- [x] Python tool implementations in `src/appship/tools/`
+- [x] Google Play Service Account setup guide
+- [x] `appship_analyze_android_project` — working, tested
+- [x] `appship_build_android_aab` — working, tested
+- [x] `appship_upload_to_google_play` — working, tested (with HITL)
+- [x] `appship_get_google_play_status` — working, tested
+- [x] Feiyue evidence for each development phase
+- [x] CI/CD: GitHub Actions (Python 3.10/11/12, ruff, pytest, PyPI trusted publishing)
 
-## Phase 2 (future)
+## Phase 2 — Orchestration & iOS (IN PROGRESS)
 
-- iOS App Store Connect skills
-- `appship_deploy_all` orchestration skill
+### `appship_deploy_all`
+
+**Purpose**: Single-command full pipeline orchestration across platforms.
+
+| Field | Value |
+|-------|-------|
+| **Input** | `project_path: string`, `platform: "android" | "ios"`, `track: string`, `release_notes: string`, `task_id?: string` |
+| **Output** | `{ status, platform, step, current_result, full_results? }` — returns at each step, HITL pauses at upload |
+| **Side effects** | Chains analyze → build → upload → status |
+
+### iOS — `appship_analyze_ios_project`
+
+**Purpose**: Read Xcode project metadata.
+
+| Field | Value |
+|-------|-------|
+| **Input** | `project_path: string` |
+| **Output** | `{ bundle_id, version, build_number, min_ios_version, xcode_project_type, has_export_options, has_pods, has_spm }` |
+| **Side effects** | None (read-only) |
+
+### iOS — `appship_build_ios_ipa`
+
+**Purpose**: Build and export iOS IPA via xcodebuild.
+
+| Field | Value |
+|-------|-------|
+| **Input** | `project_path: string`, `scheme?: string`, `configuration?: string` |
+| **Output** | `{ status, ipa_path, build_time_seconds, ipa_size_bytes }` |
+| **Side effects** | Writes .xcarchive and .ipa |
+
+### iOS — `appship_upload_to_app_store`
+
+**Purpose**: Upload IPA to App Store Connect. **HITL-gated.**
+
+| Field | Value |
+|-------|-------|
+| **Input** | `ipa_path: string`, `bundle_id: string`, API credentials, `task_id?: string` |
+| **Output** | `{ status, altool_output, ... }` or `{ status: "pending_approval" }` |
+| **Side effects** | Uploads to App Store Connect |
+| **Auth** | JWT (ES256) via App Store Connect API key (.p8) |
+
+### iOS — `appship_get_app_store_status`
+
+**Purpose**: Query App Store Connect for app status.
+
+| Field | Value |
+|-------|-------|
+| **Input** | `bundle_id: string`, API credentials |
+| **Output** | `{ bundle_id, found, app_id, name, version_state, ... }` |
+| **Side effects** | None (read-only) |
+
+### Phase 2 Deliverables
+
+- [x] `appship_deploy_all` — working, tested (7 tests)
+- [x] `appship_analyze_ios_project` — working, tested (7 tests)
+- [x] `appship_build_ios_ipa` — working, tested (11 tests)
+- [x] `appship_upload_to_app_store` — working, tested (4 tests, with HITL)
+- [x] `appship_get_app_store_status` — working, tested (2 tests)
+- [x] Feiyue evidence
+
+## Phase 3 (future)
+
 - 国内安卓渠道 (华为、小米…)
+- `appship_deploy_all` multi-platform fan-out
+- TestFlight promotion workflow
